@@ -10,6 +10,19 @@ import requests
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+# === Utility to load dictionary terms ===
+def load_dictionary_terms(path='словарь.txt') -> List[str]:
+    try:
+        with open(path, encoding='utf-8') as f:
+            content = f.read()
+        # Split by comma, handle quoted phrases, strip whitespace
+        terms = [w.strip(' "\'') for w in re.split(r',\s*', content)]
+        # Remove empty strings
+        return [t for t in terms if t]
+    except Exception as e:
+        logging.error(f"[AI] Ошибка при загрузке словаря: {e}")
+        return []
+
 
 class AIGrammarChecker:
     """
@@ -36,6 +49,8 @@ class AIGrammarChecker:
         """Анализирует предложение и возвращает объяснение + исправленный вариант"""
         prompt = f"""
 Проанализируй это предложение на наличие грамматических, орфографических и пунктуационных ошибок.
+
+ВАЖНО: Не изменяй слова и фразы, обрамлённые в {{{{ ... }}}}.
 
 Если есть ошибки:
 1. Кратко объясни, что было неправильно
