@@ -9,6 +9,8 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from ai import AIGrammarChecker
 import re
+from pymorphy2 import MorphAnalyzer
+from rapidfuzz import fuzz
 
 # === Utility to load dictionary terms and wrap them in text ===
 def load_dictionary_terms(path='словарь.txt') -> list:
@@ -21,14 +23,31 @@ def load_dictionary_terms(path='словарь.txt') -> list:
         return []
 
 def wrap_terms(text: str, terms: list) -> str:
-    # Sort by length descending to avoid partial overlaps
+    morph = MorphAnalyzer()
+    words = re.findall(r'\w+|[\w-]+', text, re.UNICODE)
+    wrapped = set()
+    # Prepare all forms for each term
     for term in sorted(terms, key=len, reverse=True):
         if not term:
             continue
-        # Escape for regex, allow matching inside text
-        pattern = re.escape(term)
-        # Only wrap if not already wrapped
-        text = re.sub(rf'(?<!\{{\{{\{{)({pattern})(?!\}}\}}\}})', r'{{{{{\1}}}}}', text)
+        term_words = term.split()
+        # Morphological forms for each word in the term
+        forms = set()
+        for w in term_words:
+            parsed = morph.parse(w)
+            for p in parsed:
+                forms.update({f.normal_form for f in p.lexeme})
+        # Add the original term and its forms
+        forms.add(term)
+        # Fuzzy match and wrap
+        for i, word in enumerate(words):
+            for form in forms:
+                # Fuzzy match: if similarity > 85% or exact match (case-insensitive)
+                if (fuzz.ratio(word.lower(), form.lower()) > 85 or word.lower() == form.lower()) and word not in wrapped:
+                    # Only wrap if not already wrapped
+                    pattern = re.compile(rf'(?<!\{{\{{\{{)\b{re.escape(word)}\b(?!\}}\}}\}})', re.UNICODE)
+                    text = pattern.sub(f'{{{{{{{word}}}}}}}', text)
+                    wrapped.add(word)
     return text
 
 # Utility to unwrap {{{ }}} wrappers from text
