@@ -9,7 +9,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from ai import AIGrammarChecker
 import re
-from pymorphy2 import MorphAnalyzer
+from pymorphy3 import MorphAnalyzer
 from rapidfuzz import fuzz
 
 # === Utility to load dictionary terms and wrap them in text ===
