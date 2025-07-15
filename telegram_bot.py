@@ -54,6 +54,15 @@ def wrap_terms(text: str, terms: list) -> str:
 def unwrap_terms(text: str) -> str:
     return re.sub(r'\{\{\{(.*?)\}\}\}', r'\1', text)
 
+# Utility to fix dash spacing (—)
+def fix_dash_spacing(text: str) -> str:
+    # Исправляет "слово—слово" на "слово — слово" (только для длинного тире)
+    # Не трогает дефисы внутри слов
+    text = re.sub(r'(\w)—(\w)', r'\1 — \2', text)
+    text = re.sub(r'(\w) —(\w)', r'\1 — \2', text)  # если нет пробела после тире
+    text = re.sub(r'(\w)— (\w)', r'\1 — \2', text)  # если нет пробела до тире
+    return text
+
 dotenv.load_dotenv()
 
 # === Настройки бота ===
@@ -123,9 +132,9 @@ async def send_next_error(chat_id: int):
 
     orig, corrected, explanation = session["errors"][session["current_idx"]]
     # Unwrap for user display
-    orig = unwrap_terms(orig)
-    corrected = unwrap_terms(corrected)
-    explanation = unwrap_terms(explanation)
+    orig = fix_dash_spacing(unwrap_terms(orig))
+    corrected = fix_dash_spacing(unwrap_terms(corrected))
+    explanation = fix_dash_spacing(unwrap_terms(explanation))
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🛠️ Исправить", callback_data="suggest"),
@@ -158,8 +167,8 @@ async def handle_choice(callback: CallbackQuery, state: FSMContext):
 
     orig, corrected, _ = session["errors"][session["current_idx"]]
     # Unwrap for user display
-    orig = unwrap_terms(orig)
-    corrected = unwrap_terms(corrected)
+    orig = fix_dash_spacing(unwrap_terms(orig))
+    corrected = fix_dash_spacing(unwrap_terms(corrected))
 
     if choice == "suggest":
         kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -199,8 +208,8 @@ async def handle_correction(callback: CallbackQuery, state: FSMContext):
 
     original, corrected = session["last_correction"]
     # Unwrap for user display
-    original = unwrap_terms(original)
-    corrected = unwrap_terms(corrected)
+    original = fix_dash_spacing(unwrap_terms(original))
+    corrected = fix_dash_spacing(unwrap_terms(corrected))
 
     if choice == "accept":
         session["original_text"] = session["original_text"].replace(original, corrected, 1)
@@ -217,9 +226,7 @@ async def finish_correction(chat_id: int):
     if not session:
         return
 
-    edited_text = session["original_text"]
-    # Unwrap for user display
-    edited_text = unwrap_terms(edited_text)
+    edited_text = fix_dash_spacing(unwrap_terms(session["original_text"]))
 
     await bot.send_message(
         chat_id,
